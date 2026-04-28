@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Milan Store</title>
+
+<style>
+body{
+margin:0;font-family:Arial;
+background:linear-gradient(135deg,#d32f2f,#7b1fa2);
+color:white;padding:15px;
+}
+
+.store-title{
+font-size:30px;
+font-weight:bold;
+text-align:center;
+margin-bottom:10px;
+}
+
+/* NAV */
+.nav{
+display:flex;
+justify-content:space-around;
+margin-bottom:15px;
+}
+.nav button{
+padding:10px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* PAGES */
+.page{display:none;}
+.active{display:block;}
+
+.store{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+}
+
+.card{
+background:rgba(255,255,255,0.2);
+padding:10px;border-radius:10px;
+text-align:center;
+}
+
+.card img{
+width:100%;border-radius:10px;
+}
+
+button{
+width:100%;padding:8px;margin-top:5px;
+border:none;border-radius:5px;cursor:pointer;
+}
+
+.buy{background:#fb641b;color:white;}
+.add{background:orange;color:white;}
+
+#cartBox{
+position:fixed;
+right:-100%;top:0;
+width:90%;max-width:350px;height:100%;
+background:white;color:black;
+padding:20px;transition:.3s;
+}
+#cartBox.active{right:0;}
+
+.track-card{
+background:white;color:black;
+padding:10px;margin-top:10px;
+border-radius:10px;
+}
+
+.payment{color:green;font-weight:bold;}
+</style>
+</head>
+
+<body>
+
+<div class="store-title">MILAN STORE</div>
+
+<div class="nav">
+<button onclick="showPage('home')">🏠 Home</button>
+<button onclick="showPage('orders')">📦 Your Orders</button>
+</div>
+
+<!-- HOME PAGE -->
+<div id="home" class="page active">
+
+<div onclick="toggleCart()">🛒 Cart (<span id="count">0</span>)</div>
+
+<div class="store" id="store"></div>
+
+</div>
+
+<!-- ORDERS PAGE -->
+<div id="orders" class="page">
+
+<h3>Your Orders</h3>
+<div id="orderList"></div>
+
+</div>
+
+<!-- CART -->
+<div id="cartBox">
+<h2>Cart</h2>
+<div id="cartItems"></div>
+<h3 id="total">₹0</h3>
+
+<input id="name" placeholder="Name">
+<input id="phone" placeholder="Phone">
+<textarea id="address" placeholder="Address"></textarea>
+
+<select id="payment">
+<option>Cash on Delivery</option>
+<option>Online Payment (UPI)</option>
+</select>
+
+<input id="upiTxn" placeholder="Enter UPI TXN ID">
+
+<button class="buy" onclick="payNow()">PAY NOW</button>
+<button class="add" onclick="order()">CONFIRM ORDER</button>
+
+<button onclick="toggleCart()">Close</button>
+</div>
+
+<script>
+let products=[
+{name:"Cooling Glass",price:159,img:"images/imagesale1.jpg"},
+{name:"Sneakers",price:1599,img:"images/image2sale.jpg"},
+{name:"Key Chain",price:299,img:"images/imagesale3.jpg"}
+];
+
+let cart=[];
+let orders=JSON.parse(localStorage.getItem("orders"))||[];
+
+const UPI_ID="abdlatheefakd009@okhdfcbank";
+
+/* PAGE SWITCH */
+function showPage(p){
+document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
+document.getElementById(p).classList.add("active");
+if(p==="orders") renderOrders();
+}
+
+/* STORE */
+function render(){
+let html="";
+products.forEach(p=>{
+html+=`
+<div class="card">
+<img src="${p.img}">
+<h4>${p.name}</h4>
+<p>₹${p.price}</p>
+<button class="buy" onclick="buy('${p.name}',${p.price})">BUY</button>
+<button class="add" onclick="add('${p.name}',${p.price})">CART</button>
+</div>`;
+});
+store.innerHTML=html;
+}
+
+function add(n,p){
+let f=cart.find(i=>i.name==n);
+if(f)f.qty++; else cart.push({name:n,price:p,qty:1});
+update();
+}
+
+function buy(n,p){
+cart=[{name:n,price:p,qty:1}];
+update(); toggleCart();
+}
+
+function update(){
+count.innerText=cart.reduce((a,b)=>a+b.qty,0);
+let html="",t=0;
+cart.forEach(i=>{
+t+=i.price*i.qty;
+html+=`<p>${i.name} x${i.qty}</p>`;
+});
+cartItems.innerHTML=html;
+total.innerText="₹"+t;
+}
+
+function toggleCart(){
+cartBox.classList.toggle("active");
+}
+
+/* PAYMENT */
+function payNow(){
+let t=cart.reduce((a,b)=>a+b.price*b.qty,0);
+if(cart.length==0)return alert("Empty");
+location.href=`upi://pay?pa=${UPI_ID}&pn=Milan&am=${t}&cu=INR`;
+}
+
+/* ORDER */
+function order(){
+let n=name.value,p=phone.value,a=address.value;
+let pay=payment.value;
+let txn=upiTxn.value||"Not Provided";
+
+if(!n||!p||!a||cart.length==0)return alert("Fill details");
+
+let items=cart.map(i=>`${i.name} x${i.qty}`).join(", ");
+let t=cart.reduce((a,b)=>a+b.price*b.qty,0);
+let id="MILAN"+Math.floor(Math.random()*1000000);
+
+orders.push({
+id,items,total:t,
+status:"Processing",
+txn,payment:pay,rating:0
+});
+
+localStorage.setItem("orders",JSON.stringify(orders));
+
+alert("Order ID: "+id);
+
+cart=[]; update();
+toggleCart();
+}
+/* SHOW ORDERS */
+function renderOrders(){
+let html="";
+orders.forEach((o,i)=>{
+
+let status="⏳ Processing";
+if(o.status==="Shipped") status="🚚 Shipped";
+if(o.status==="Delivered") status="✅ Delivered";
+
+html+=`
+<div class="track-card">
+
+<p><b>${status}</b></p>
+<p>₹${o.total}</p>
+<p>TXN: ${o.txn}</p>
+<p class="payment">${o.payment}</p>
+
+<p>⭐ Rate:</p>
+<select onchange="rate(${i},this.value)">
+<option>0</option>
+<option>1</option>
+<option>2</option>
+<option>3</option>
+<option>4</option>
+<option>5</option>
+</select>
+
+</div>`;
+});
+
+orderList.innerHTML=html || "No orders yet";
+}
+
+/* RATING */
+function rate(i,val){
+orders[i].rating=val;
+localStorage.setItem("orders",JSON.stringify(orders));
+alert("Rated "+val+"⭐");
+}
+
+render();
+
+</script>
+
+</body>
+</html>
