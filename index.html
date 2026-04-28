@@ -12,10 +12,11 @@ color:white;padding:15px;
 }
 
 .store-title{
-font-size:30px;
+font-size:32px;
 font-weight:bold;
 text-align:center;
 margin-bottom:10px;
+letter-spacing:1px;
 }
 
 /* NAV */
@@ -48,12 +49,18 @@ text-align:center;
 }
 
 .card img{
-width:100%;border-radius:10px;
+width:100%;
+border-radius:10px;
+aspect-ratio:1/1;
+object-fit:cover;
 }
-
 button{
-width:100%;padding:8px;margin-top:5px;
-border:none;border-radius:5px;cursor:pointer;
+width:100%;
+padding:8px;
+margin-top:5px;
+border:none;
+border-radius:5px;
+cursor:pointer;
 }
 
 .buy{background:#fb641b;color:white;}
@@ -61,20 +68,39 @@ border:none;border-radius:5px;cursor:pointer;
 
 #cartBox{
 position:fixed;
-right:-100%;top:0;
-width:90%;max-width:350px;height:100%;
-background:white;color:black;
-padding:20px;transition:.3s;
+right:-100%;
+top:0;
+width:90%;
+max-width:350px;
+height:100%;
+background:white;
+color:black;
+padding:20px;
+transition:.3s;
+overflow:auto;
 }
 #cartBox.active{right:0;}
 
 .track-card{
-background:white;color:black;
-padding:10px;margin-top:10px;
+background:white;
+color:black;
+padding:10px;
+margin-top:10px;
 border-radius:10px;
 }
 
-.payment{color:green;font-weight:bold;}
+.payment{
+color:green;
+font-weight:bold;
+}
+
+input, textarea, select{
+width:100%;
+margin-top:8px;
+padding:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
 </style>
 </head>
 
@@ -87,7 +113,7 @@ border-radius:10px;
 <button onclick="showPage('orders')">📦 Your Orders</button>
 </div>
 
-<!-- HOME PAGE -->
+<!-- HOME -->
 <div id="home" class="page active">
 
 <div onclick="toggleCart()">🛒 Cart (<span id="count">0</span>)</div>
@@ -96,30 +122,29 @@ border-radius:10px;
 
 </div>
 
-<!-- ORDERS PAGE -->
+<!-- ORDERS -->
 <div id="orders" class="page">
-
 <h3>Your Orders</h3>
 <div id="orderList"></div>
-
 </div>
 
 <!-- CART -->
 <div id="cartBox">
 <h2>Cart</h2>
+
 <div id="cartItems"></div>
 <h3 id="total">₹0</h3>
 
-<input id="name" placeholder="Name">
-<input id="phone" placeholder="Phone">
+<input id="name" placeholder="Your Name">
+<input id="phone" placeholder="Phone Number">
 <textarea id="address" placeholder="Address"></textarea>
 
-<select id="payment">
+<select id="payment" onchange="toggleTxn()">
 <option>Cash on Delivery</option>
 <option>Online Payment (UPI)</option>
 </select>
 
-<input id="upiTxn" placeholder="Enter UPI TXN ID">
+<input id="upiTxn" placeholder="Enter UPI Transaction ID">
 
 <button class="buy" onclick="payNow()">PAY NOW</button>
 <button class="add" onclick="order()">CONFIRM ORDER</button>
@@ -128,6 +153,7 @@ border-radius:10px;
 </div>
 
 <script>
+/* PRODUCTS */
 let products=[
 {name:"Cooling Glass",price:159,img:"images/imagesale1.jpg"},
 {name:"Sneakers",price:1599,img:"images/image2sale.jpg"},
@@ -146,7 +172,7 @@ document.getElementById(p).classList.add("active");
 if(p==="orders") renderOrders();
 }
 
-/* STORE */
+/* RENDER STORE */
 function render(){
 let html="";
 products.forEach(p=>{
@@ -155,13 +181,14 @@ html+=`
 <img src="${p.img}">
 <h4>${p.name}</h4>
 <p>₹${p.price}</p>
-<button class="buy" onclick="buy('${p.name}',${p.price})">BUY</button>
-<button class="add" onclick="add('${p.name}',${p.price})">CART</button>
+<button class="buy" onclick="buy('${p.name}',${p.price})">BUY NOW</button>
+<button class="add" onclick="add('${p.name}',${p.price})">ADD TO CART</button>
 </div>`;
 });
 store.innerHTML=html;
 }
 
+/* CART */
 function add(n,p){
 let f=cart.find(i=>i.name==n);
 if(f)f.qty++; else cart.push({name:n,price:p,qty:1});
@@ -170,16 +197,19 @@ update();
 
 function buy(n,p){
 cart=[{name:n,price:p,qty:1}];
-update(); toggleCart();
+update();
+toggleCart();
 }
 
 function update(){
 count.innerText=cart.reduce((a,b)=>a+b.qty,0);
+
 let html="",t=0;
 cart.forEach(i=>{
 t+=i.price*i.qty;
 html+=`<p>${i.name} x${i.qty}</p>`;
 });
+
 cartItems.innerHTML=html;
 total.innerText="₹"+t;
 }
@@ -188,41 +218,72 @@ function toggleCart(){
 cartBox.classList.toggle("active");
 }
 
-/* PAYMENT */
+/* UPI PAYMENT */
 function payNow(){
 let t=cart.reduce((a,b)=>a+b.price*b.qty,0);
-if(cart.length==0)return alert("Empty");
+if(cart.length==0) return alert("Cart empty");
+
 location.href=`upi://pay?pa=${UPI_ID}&pn=Milan&am=${t}&cu=INR`;
+}
+
+/* SHOW / HIDE TXN */
+function toggleTxn(){
+let pay=payment.value;
+upiTxn.style.display = pay.includes("Online") ? "block" : "none";
 }
 
 /* ORDER */
 function order(){
-let n=name.value,p=phone.value,a=address.value;
-let pay=payment.value;
-let txn=upiTxn.value||"Not Provided";
 
-if(!n||!p||!a||cart.length==0)return alert("Fill details");
+let n=name.value,
+p=phone.value,
+a=address.value;
+
+let pay=payment.value;
+let txn=upiTxn.value || "Not Required";
+
+if(!n||!p||!a||cart.length==0){
+alert("Fill all details");
+return;
+}
+
+/* UPI validation */
+if(pay.includes("Online") && txn==="Not Required"){
+alert("Enter UPI Transaction ID after payment");
+return;
+}
 
 let items=cart.map(i=>`${i.name} x${i.qty}`).join(", ");
 let t=cart.reduce((a,b)=>a+b.price*b.qty,0);
 let id="MILAN"+Math.floor(Math.random()*1000000);
 
 orders.push({
-id,items,total:t,
+id,
+items,
+total:t,
 status:"Processing",
-txn,payment:pay,rating:0
+txn,
+payment:pay,
+rating:0
 });
 
 localStorage.setItem("orders",JSON.stringify(orders));
 
-alert("Order ID: "+id);
+if(pay==="Cash on Delivery"){
+alert("Order placed (Cash on Delivery)\nOrder ID: "+id);
+}else{
+alert("Online order placed\nOrder ID: "+id);
+}
 
-cart=[]; update();
+cart=[];
+update();
 toggleCart();
 }
+
 /* SHOW ORDERS */
 function renderOrders(){
 let html="";
+
 orders.forEach((o,i)=>{
 
 let status="⏳ Processing";
@@ -239,20 +300,19 @@ html+=`
 
 <p>⭐ Rate:</p>
 <select onchange="rate(${i},this.value)">
-<option>0</option>
-<option>1</option>
-<option>2</option>
-<option>3</option>
-<option>4</option>
-<option>5</option>
+<option ${o.rating==0?"selected":""}>0</option>
+<option ${o.rating==1?"selected":""}>1</option>
+<option ${o.rating==2?"selected":""}>2</option>
+<option ${o.rating==3?"selected":""}>3</option>
+<option ${o.rating==4?"selected":""}>4</option>
+<option ${o.rating==5?"selected":""}>5</option>
 </select>
 
 </div>`;
 });
 
-orderList.innerHTML=html || "No orders yet";
+orderList.innerHTML = html || "No orders yet";
 }
-
 /* RATING */
 function rate(i,val){
 orders[i].rating=val;
@@ -260,7 +320,9 @@ localStorage.setItem("orders",JSON.stringify(orders));
 alert("Rated "+val+"⭐");
 }
 
+/* INIT */
 render();
+toggleTxn();
 
 </script>
 
